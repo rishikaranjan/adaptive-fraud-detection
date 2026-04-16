@@ -15,6 +15,9 @@ from src.train import train_pipeline, evaluate_model, save_pipeline
 from src.evaluate import evaluate_batches
 from src.drift import detect_drift_for_batch, summarize_batch_drift
 
+from src.drift_analysis import get_top_drifting_features, get_global_drift_ranking
+
+
 
 def main():
     print("Starting fraud detection pipeline...")
@@ -103,6 +106,19 @@ def main():
 
     print(f"Saved drift summary to: {RESULTS_DIR / 'phase2_batch_drift_summary.csv'}")
     print(f"Saved feature-level drift details to: {RESULTS_DIR / 'phase2_feature_drift_details.csv'}")
+
+
+    # 🔥 Phase 2.5: Drift analysis summaries
+    top_drift_df = get_top_drifting_features(feature_drift_all_df, top_n=10)
+    global_drift_df = get_global_drift_ranking(feature_drift_all_df)
+
+    # Save results
+    top_drift_df.to_csv(RESULTS_DIR / "phase25_top_drift_per_batch.csv", index=False)
+    global_drift_df.to_csv(RESULTS_DIR / "phase25_global_drift_ranking.csv", index=False)
+
+    print(f"Saved top drift per batch to: {RESULTS_DIR / 'phase25_top_drift_per_batch.csv'}")
+    print(f"Saved global drift ranking to: {RESULTS_DIR / 'phase25_global_drift_ranking.csv'}")
+
 
     save_pipeline(pipeline)
 
