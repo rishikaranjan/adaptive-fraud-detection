@@ -22,6 +22,11 @@ def main():
     df = load_data()
     df = basic_cleaning(df)
 
+    # Drop useless ID/time columns (IMPORTANT)
+    DROP_COLS = ["TransactionID", "TransactionDT"]
+    df = df.drop(columns=DROP_COLS, errors="ignore")
+
+
     print(f"Dataset shape: {df.shape}")
     print(f"Fraud rate: {df[TARGET_COL].mean():.6f}")
 
