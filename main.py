@@ -1,15 +1,19 @@
+import pandas as pd
+
 from src.config import (
     TARGET_COL,
     TRAIN_RATIO,
     VALID_RATIO,
     TEST_RATIO,
-    N_BATCHES
+    N_BATCHES,
+    RESULTS_DIR
 )
 from src.data_loader import load_data, basic_cleaning
 from src.preprocess import get_column_types, build_preprocessor
 from src.simulator import chronological_split
 from src.train import train_pipeline, evaluate_model, save_pipeline
 from src.evaluate import evaluate_batches
+from src.drift import detect_drift_for_batch, summarize_batch_drift
 
 
 def main():
@@ -50,12 +54,50 @@ def main():
     print("\nBatch-wise evaluation:")
     print(batch_results)
 
-    from pathlib import Path
-    from src.config import RESULTS_DIR
-
+    # Save batch metrics
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     batch_results.to_csv(RESULTS_DIR / "phase1_batch_results.csv", index=False)
     print(f"Saved batch results to: {RESULTS_DIR / 'phase1_batch_results.csv'}")
+
+    # Drift detection per batch
+    print("\nRunning drift detection...")
+    batch_size = len(X_test) // N_BATCHES
+    drift_summaries = []
+    all_feature_drift_results = []
+
+    for i in range(N_BATCHES):
+        start = i * batch_size
+        end = (i + 1) * batch_size if i < N_BATCHES - 1 else len(X_test)
+
+        X_batch = X_test.iloc[start:end]
+
+        feature_drift_df = detect_drift_for_batch(
+            reference_df=X_train,
+            batch_df=X_batch,
+            numeric_cols=numeric_cols,
+            alpha=0.05,
+            psi_threshold=0.2
+        )
+
+        feature_drift_df["batch_id"] = i + 1
+        all_feature_drift_results.append(feature_drift_df)
+
+        summary = summarize_batch_drift(feature_drift_df, batch_id=i + 1)
+        drift_summaries.append(summary)
+
+
+    drift_summary_df = pd.DataFrame(drift_summaries)
+    feature_drift_all_df = pd.concat(all_feature_drift_results, ignore_index=True)
+
+
+    print("\nBatch-wise drift summary:")
+    print(drift_summary_df)
+
+    drift_summary_df.to_csv(RESULTS_DIR / "phase2_batch_drift_summary.csv", index=False)
+    feature_drift_all_df.to_csv(RESULTS_DIR / "phase2_feature_drift_details.csv", index=False)
+
+    print(f"Saved drift summary to: {RESULTS_DIR / 'phase2_batch_drift_summary.csv'}")
+    print(f"Saved feature-level drift details to: {RESULTS_DIR / 'phase2_feature_drift_details.csv'}")
 
     save_pipeline(pipeline)
 
