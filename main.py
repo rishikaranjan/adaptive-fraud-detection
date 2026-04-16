@@ -50,6 +50,13 @@ def main():
     print("\nBatch-wise evaluation:")
     print(batch_results)
 
+    from pathlib import Path
+    from src.config import RESULTS_DIR
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    batch_results.to_csv(RESULTS_DIR / "phase1_batch_results.csv", index=False)
+    print(f"Saved batch results to: {RESULTS_DIR / 'phase1_batch_results.csv'}")
+
     save_pipeline(pipeline)
 
 
