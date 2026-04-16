@@ -14,8 +14,9 @@ from src.simulator import chronological_split
 from src.train import train_pipeline, evaluate_model, save_pipeline
 from src.evaluate import evaluate_batches
 from src.drift import detect_drift_for_batch, summarize_batch_drift
-
 from src.drift_analysis import get_top_drifting_features, get_global_drift_ranking
+from src.retrain import retrain_and_evaluate
+from sklearn.metrics import average_precision_score
 
 
 
@@ -117,10 +118,82 @@ def main():
     global_drift_df.to_csv(RESULTS_DIR / "phase25_global_drift_ranking.csv", index=False)
 
     print(f"Saved top drift per batch to: {RESULTS_DIR / 'phase25_top_drift_per_batch.csv'}")
+    
+    
     print(f"Saved global drift ranking to: {RESULTS_DIR / 'phase25_global_drift_ranking.csv'}")
 
 
-    save_pipeline(pipeline)
+    # 🚀 Phase 3: Adaptive Retraining
+    print("\nRunning adaptive retraining...")
+
+    batch_size = len(X_test) // N_BATCHES
+    current_pipeline = pipeline
+
+    adaptive_results = []
+
+
+
+    for i in range(N_BATCHES):
+        start = i * batch_size
+        end = (i + 1) * batch_size if i < N_BATCHES - 1 else len(X_test)
+
+        X_batch = X_test.iloc[start:end]
+        y_batch = y_test.iloc[start:end]
+
+        # Evaluate current model
+        y_proba_old = current_pipeline.predict_proba(X_batch)[:, 1]
+        old_pr_auc = average_precision_score(y_batch, y_proba_old)
+
+        # Drift detection
+        feature_drift_df = detect_drift_for_batch(
+            reference_df=X_train,
+            batch_df=X_batch,
+            numeric_cols=numeric_cols
+        )
+
+        avg_psi = feature_drift_df["psi"].mean()
+
+        retrained = False
+        new_pr_auc = old_pr_auc
+
+        # 🔥 Trigger retraining
+        if avg_psi > 0.1:
+            retrained = True
+
+            # 🚀 Combine old + new data (ADAPTIVE LEARNING)
+            X_retrain = pd.concat([X_train, X_batch])
+            y_retrain = pd.concat([y_train, y_batch])
+
+            new_pipeline, new_pr_auc = retrain_and_evaluate(
+                X_retrain, y_retrain, X_batch, y_batch, preprocessor
+            )
+            
+
+            # Replace model if better
+            if new_pr_auc > old_pr_auc:
+                current_pipeline = new_pipeline
+
+        adaptive_results.append({
+            "batch_id": i + 1,
+            "avg_psi": avg_psi,
+            "old_pr_auc": old_pr_auc,
+            "new_pr_auc": new_pr_auc,
+            "retrained": retrained
+        })
+
+    adaptive_df = pd.DataFrame(adaptive_results)
+    adaptive_df.to_csv(RESULTS_DIR / "phase3_adaptive_results.csv", index=False)
+
+    print("\nAdaptive results:")
+    print(adaptive_df)
+
+
+    # Save final model
+    save_pipeline(current_pipeline)
+
+
+
+
 
 
 if __name__ == "__main__":

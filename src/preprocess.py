@@ -2,6 +2,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 
 
 def get_column_types(df, target_col):
@@ -14,8 +15,10 @@ def get_column_types(df, target_col):
 
 
 def build_preprocessor(numeric_cols, categorical_cols):
+
     numeric_pipeline = Pipeline([
-        ("imputer", SimpleImputer(strategy="median"))
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler())
     ])
 
     categorical_pipeline = Pipeline([
