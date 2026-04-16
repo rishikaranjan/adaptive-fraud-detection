@@ -17,7 +17,7 @@ from src.drift import detect_drift_for_batch, summarize_batch_drift
 from src.drift_analysis import get_top_drifting_features, get_global_drift_ranking
 from src.retrain import retrain_and_evaluate
 from sklearn.metrics import average_precision_score
-
+from src.plots import plot_adaptive_pr_auc, plot_avg_psi, plot_drift_vs_performance
 
 
 def main():
@@ -186,6 +186,19 @@ def main():
 
     print("\nAdaptive results:")
     print(adaptive_df)
+
+
+    # Phase 4: Generate plots
+    plot_adaptive_pr_auc(adaptive_df, RESULTS_DIR)
+    plot_avg_psi(adaptive_df, RESULTS_DIR)
+    plot_drift_vs_performance(adaptive_df, RESULTS_DIR)
+
+    print(f"Saved adaptive PR-AUC plot to: {RESULTS_DIR / 'phase4_adaptive_pr_auc.png'}")
+    print(f"Saved average PSI plot to: {RESULTS_DIR / 'phase4_avg_psi.png'}")
+    print(f"Saved drift vs performance plot to: {RESULTS_DIR / 'phase4_drift_vs_performance.png'}")
+
+
+
 
 
     # Save final model
